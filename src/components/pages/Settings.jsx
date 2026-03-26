@@ -1,25 +1,32 @@
-import { useState } from "react";
-import { save, load } from "../../utils/storage";
+import React, { useState, useEffect } from "react";
+import { getHabits } from "../../utils/storage";
 
-export default function Settings({ user, onLogout, habits, setHabits }) {
-  const [saved, setSaved] = useState(false);
-  const [reminder, setReminder] = useState(load("reminder_time", "08:00"));
+export default function Settings({ user, onLogout }) {
+  const [habits, setHabits] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  const handleSave = () => {
-    save("reminder_time", reminder);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
-  };
+  const userName = user?.name || "Legendary User";
+  const userEmail = user?.email || "demo@example.com";
 
-  const clearAll = () => {
-    if (window.confirm("This will delete all your habits and progress. Are you sure?")) {
-      setHabits([]);
-    }
-  };
+  function loadHabits() {
+    const data = getHabits();
+    setHabits(data);
+    setLoading(false);
+  }
+
+  useEffect(() => {
+    loadHabits();
+  }, []);
+
+  const totalDone = habits.reduce((s, h) => s + Object.values(h.logs || {}).filter(Boolean).length, 0);
+  const totalDays = habits.reduce((s, h) => {
+    const logs = h.logs || {};
+    return s + Object.keys(logs).length;
+  }, 0);
 
   const exportData = () => {
     const data = {
-      user,
+      user: { name: userName, email: userEmail },
       habits,
       exportedAt: new Date().toISOString(),
     };
@@ -28,13 +35,19 @@ export default function Settings({ user, onLogout, habits, setHabits }) {
     const url = URL.createObjectURL(dataBlob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = `comeback-tracker-backup-${new Date().getTime()}.json`;
+    link.download = `comeback-legend-backup-${new Date().getTime()}.json`;
     link.click();
     URL.revokeObjectURL(url);
   };
 
-  const totalDone = habits.reduce((s, h) => s + Object.values(h.logs || {}).filter(Boolean).length, 0);
-  const totalDays = habits.reduce((s, h) => s + Object.keys(h.logs || {}).length, 0);
+  const clearData = () => {
+    if (window.confirm("CRITICAL: This will delete ALL your habits and progress from this browser forever. Continue?")) {
+      localStorage.clear();
+      window.location.reload();
+    }
+  };
+
+  if (loading) return <div style={{ padding: "40px", textAlign: "center", color: "var(--text2)" }}>Loading settings...</div>;
 
   return (
     <div style={{ maxWidth: "680px" }} className="fade-in">
@@ -61,14 +74,14 @@ export default function Settings({ user, onLogout, habits, setHabits }) {
             fontSize: "22px", 
             fontWeight: 700 
           }}>
-            {user.name[0].toUpperCase()}
+            {userName?.[0]?.toUpperCase() || "U"}
           </div>
           <div>
             <div style={{ fontWeight: 700, fontSize: "16px" }}>
-              {user.name}
+              {userName}
             </div>
             <div style={{ color: "var(--text2)", fontSize: "13px" }}>
-              {user.email}
+              {userEmail}
             </div>
           </div>
         </div>
@@ -77,9 +90,9 @@ export default function Settings({ user, onLogout, habits, setHabits }) {
       {/* Stats */}
       <div className="card" style={{ marginBottom: "16px" }}>
         <h2 style={{ fontSize: "15px", fontWeight: 700, marginBottom: "16px" }}>
-          Your Stats
+          Storage Stats
         </h2>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "12px" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: "12px" }}>
           {[
             { label: "Habits Tracked", value: habits.length },
             { label: "Total Completions", value: totalDone },
@@ -105,48 +118,21 @@ export default function Settings({ user, onLogout, habits, setHabits }) {
         </div>
       </div>
 
-      {/* Reminder */}
-      <div className="card" style={{ marginBottom: "16px" }}>
-        <h2 style={{ fontSize: "15px", fontWeight: 700, marginBottom: "4px" }}>
-          Daily Reminder
-        </h2>
-        <p style={{ color: "var(--text2)", fontSize: "13px", marginBottom: "14px" }}>
-          Set your preferred check-in time
-        </p>
-        <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
-          <input 
-            type="time" 
-            value={reminder} 
-            onChange={e => setReminder(e.target.value)} 
-            style={{ maxWidth: "160px" }} 
-          />
-          <button 
-            className="btn btn-primary" 
-            onClick={handleSave}
-          >
-            {saved ? "✓ Saved!" : "Save"}
-          </button>
-        </div>
-        <p style={{ color: "var(--text3)", fontSize: "12px", marginTop: "8px" }}>
-          ⚠️ Browser notifications must be enabled. This is a visual preference for now.
-        </p>
-      </div>
-
       {/* Data Management */}
       <div className="card" style={{ marginBottom: "16px" }}>
         <h2 style={{ fontSize: "15px", fontWeight: 700, marginBottom: "4px" }}>
           Data Management
         </h2>
         <p style={{ color: "var(--text2)", fontSize: "13px", marginBottom: "14px" }}>
-          Export or manage your data
+          Your data is stored locally in your browser's localStorage.
         </p>
         <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
           <button className="btn btn-ghost" onClick={exportData}>
-            📥 Export Data
+            📥 Export Backup (JSON)
           </button>
         </div>
         <p style={{ color: "var(--text3)", fontSize: "12px", marginTop: "8px" }}>
-          Download your habits and progress as JSON for backup or migration.
+          Download your habits and progress as JSON for backup.
         </p>
       </div>
 
@@ -156,14 +142,14 @@ export default function Settings({ user, onLogout, habits, setHabits }) {
           Danger Zone
         </h2>
         <p style={{ color: "var(--text2)", fontSize: "13px", marginBottom: "14px" }}>
-          Irreversible actions below
+          Be careful with these legendary actions.
         </p>
         <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
-          <button className="btn btn-danger" onClick={clearAll}>
-            Clear All Habits
-          </button>
-          <button className="btn btn-danger" onClick={onLogout}>
+          <button className="btn btn-ghost" onClick={onLogout}>
             Sign Out
+          </button>
+          <button className="btn btn-danger" onClick={clearData}>
+            Clear All Data
           </button>
         </div>
       </div>

@@ -1,8 +1,21 @@
-import { useState } from "react";
-import { DAYS, formatDate } from "../../utils/helpers";
+import React, { useState, useEffect } from "react";
+import { formatDate } from "../../utils/helpers";
+import { getHabits } from "../../utils/storage";
 
-export default function Timeline({ habits }) {
+export default function Timeline({ user }) {
+  const [habits, setHabits] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [period, setPeriod] = useState("week");
+
+  function loadHabits() {
+    const data = getHabits();
+    setHabits(data);
+    setLoading(false);
+  }
+
+  useEffect(() => {
+    loadHabits();
+  }, []);
 
   const periods = [
     { id: "week", label: "Week", days: 7 },
@@ -12,17 +25,27 @@ export default function Timeline({ habits }) {
     { id: "year", label: "Year", days: 365 },
   ];
 
-  const days = periods.find(p => p.id === period)?.days || 7;
-  const dateRange = Array.from({ length: days }, (_, i) => {
-    const d = new Date();
-    d.setDate(d.getDate() - (days - 1 - i));
-    return d.toISOString().split("T")[0];
-  });
+  const daysCount = periods.find(p => p.id === period)?.days || 7;
+  const dateRange = (() => {
+    const today = new Date();
+    const currentYear = today.getFullYear();
+    const range = [];
+    for (let i = 0; i < daysCount; i++) {
+      const d = new Date();
+      d.setDate(d.getDate() - (daysCount - 1 - i));
+      // If user wants 2026, we ensure we don't show 2025 in long views unless it's genuinely needed
+      // But based on the request, we'll clamp to 2026-01-01 if it's 2026
+      if (currentYear === 2026 && d.getFullYear() < 2026) {
+        continue;
+      }
+      range.push(d.toISOString().split("T")[0]);
+    }
+    return range;
+  })();
 
   const grouped = (() => {
-    if (days <= 7) return [{ label: "This Week", dates: dateRange }];
-    if (days <= 30) {
-      // group by week
+    if (daysCount <= 7) return [{ label: "This Week", dates: dateRange }];
+    if (daysCount <= 30) {
       const weeks = [];
       for (let i = 0; i < dateRange.length; i += 7) {
         const chunk = dateRange.slice(i, i + 7);
@@ -30,7 +53,6 @@ export default function Timeline({ habits }) {
       }
       return weeks;
     }
-    // group by month
     const months = {};
     dateRange.forEach(d => {
       const key = d.slice(0, 7);
@@ -50,6 +72,8 @@ export default function Timeline({ habits }) {
     return total > 0 ? Math.round((done / total) * 100) : 0;
   };
 
+  if (loading) return <div style={{ padding: "40px", textAlign: "center", color: "var(--text2)" }}>Loading timeline...</div>;
+
   return (
     <div style={{ maxWidth: "900px" }} className="fade-in">
       <div style={{ marginBottom: "28px" }}>
@@ -57,7 +81,7 @@ export default function Timeline({ habits }) {
           GROWTH TIMELINE
         </h1>
         <p style={{ color: "var(--text2)", fontSize: "13px", marginTop: "4px" }}>
-          Your complete journey, visualized
+          Your complete legendary journey, visualized from localStorage.
         </p>
       </div>
 
@@ -73,7 +97,6 @@ export default function Timeline({ habits }) {
         ))}
       </div>
 
-      {/* Timeline visual */}
       <div style={{ position: "relative" }}>
         <div style={{ 
           position: "absolute", 
@@ -89,14 +112,12 @@ export default function Timeline({ habits }) {
             const score = getScore(g.dates);
             const color = score >= 80 ? "var(--green)" : score >= 50 ? "var(--accent)" : "var(--red)";
             return (
-              <div key={gi} style={{ display: "flex", gap: "20px", alignItems: "flex-start" }}>
-                {/* Score circle */}
+              <div key={gi} className="slide-up" style={{ display: "flex", gap: "20px", alignItems: "flex-start", animationDelay: `${gi * 0.1}s` }}>
                 <div style={{ width: "70px", textAlign: "right", flexShrink: 0 }}>
                   <div style={{ fontSize: "11px", color: "var(--text3)", marginBottom: "4px", fontFamily: "var(--font-mono)" }}>
                     {score}%
                   </div>
                 </div>
-                {/* Dot */}
                 <div style={{ position: "relative", zIndex: 1, marginTop: "4px" }}>
                   <div style={{ 
                     width: "12px", 
@@ -107,7 +128,6 @@ export default function Timeline({ habits }) {
                     border: "2px solid var(--bg)" 
                   }} />
                 </div>
-                {/* Card */}
                 <div className="card" style={{ flex: 1, borderColor: score >= 80 ? "rgba(34,197,94,0.2)" : "var(--border)" }}>
                   <div style={{ 
                     display: "flex", 
@@ -119,10 +139,10 @@ export default function Timeline({ habits }) {
                       {g.label}
                     </h3>
                     <span style={{ fontSize: "12px", color }}>
-                      {score >= 80 ? "🔥 Excellent" : score >= 50 ? "⚡ Good" : score > 0 ? "💪 Keep going" : "—"}
+                      {score >= 80 ? "🔥 Excellent" : score >= 50 ? "⚡ Good" : score > 0 ? "💪 Recovering" : "—"}
                     </span>
                   </div>
-                  <div className="progress-bar" style={{ marginBottom: "10px" }}>
+                  <div className="progress-bar" style={{ marginBottom: "15px" }}>
                     <div 
                       className="progress-fill" 
                       style={{ 
@@ -131,8 +151,7 @@ export default function Timeline({ habits }) {
                       }} 
                     />
                   </div>
-                  {/* Mini heatmap for the period */}
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: "3px" }}>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: "4px" }}>
                     {g.dates.map(d => {
                       const count = habits.filter(h => h.logs?.[d]).length;
                       const maxH = habits.length || 1;
@@ -140,10 +159,10 @@ export default function Timeline({ habits }) {
                       return (
                         <div 
                           key={d} 
-                          title={`${formatDate(d)}: ${count}/${maxH}`} 
+                          title={`${formatDate(d)}: ${count}/${maxH} done`} 
                           style={{
-                            width: days <= 30 ? "20px" : "12px",
-                            height: days <= 30 ? "20px" : "12px",
+                            width: daysCount <= 30 ? "20px" : "12px",
+                            height: daysCount <= 30 ? "20px" : "12px",
                             borderRadius: "3px",
                             background: count === 0 ? "var(--surface2)" : intensity >= 0.8 ? "var(--green)" : intensity >= 0.5 ? "#eab308" : "#f97316",
                           }} 

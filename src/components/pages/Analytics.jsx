@@ -1,8 +1,24 @@
-import { CATEGORIES, DAYS, getLast7Days, getLast30Days, formatDate } from "../../utils/helpers";
+import React, { useState, useEffect } from "react";
+import { CATEGORIES, DAYS, getLast7Days, getLast30Days, formatDate, calcComebackScore } from "../../utils/helpers";
+import { getHabits } from "../../utils/storage";
 
-export default function Analytics({ habits, comebackScore }) {
+export default function Analytics({ user }) {
+  const [habits, setHabits] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  function loadHabits() {
+    const data = getHabits();
+    setHabits(data);
+    setLoading(false);
+  }
+
+  useEffect(() => {
+    loadHabits();
+  }, []);
+
   const last7 = getLast7Days();
   const last30 = getLast30Days();
+  const comebackScore = calcComebackScore(habits);
 
   // Weekly chart data
   const weekData = last7.map(d => {
@@ -43,14 +59,16 @@ export default function Analytics({ habits, comebackScore }) {
       if (v) dayOfWeekMiss[day]++;
     });
   });
-  const worst = dayOfWeekTotal.reduce((wi, t, i) => t > 3 && (dayOfWeekMiss[i] / t) < (dayOfWeekMiss[wi] / (dayOfWeekTotal[wi] || 1)) ? i : wi, 0);
+  const worst = dayOfWeekTotal.reduce((wi, t, i) => t > 3 && (dayOfWeekMiss[i] / (t || 1)) < (dayOfWeekMiss[wi] / (dayOfWeekTotal[wi] || 1)) ? i : wi, 0);
   if (dayOfWeekTotal[worst] > 0) {
     const rate = Math.round((dayOfWeekMiss[worst] / dayOfWeekTotal[worst]) * 100);
     if (rate < 70) insights.push({ icon: "⚠️", text: `You struggle most on ${DAYS[worst]}s — only ${rate}% completion.`, type: "warn" });
   }
-  if (comebackScore >= 75) insights.push({ icon: "💪", text: "You recover well after missed days. Keep it up!", type: "good" });
-  if (habits.some(h => h.streak >= 7)) insights.push({ icon: "🔥", text: "You have an active 7+ day streak. Don't break it!", type: "good" });
+  if (comebackScore >= 75) insights.push({ icon: "💪", text: "Excellent resilience! You recover well after missed days.", type: "good" });
+  if (habits.some(h => h.streak >= 7)) insights.push({ icon: "🔥", text: "Active legend! You have streaks over 7 days.", type: "good" });
   if (habits.length === 0) insights.push({ icon: "🌱", text: "Add habits to unlock insights.", type: "neutral" });
+
+  if (loading) return <div style={{ padding: "40px", textAlign: "center", color: "var(--text2)" }}>Analyzing your data...</div>;
 
   return (
     <div style={{ maxWidth: "1000px" }} className="fade-in">
@@ -59,7 +77,7 @@ export default function Analytics({ habits, comebackScore }) {
           ANALYTICS
         </h1>
         <p style={{ color: "var(--text2)", fontSize: "13px", marginTop: "4px" }}>
-          Deep dive into your performance
+          Deep dive into your legendary performance.
         </p>
       </div>
 
@@ -96,7 +114,6 @@ export default function Analytics({ habits, comebackScore }) {
                     background: d.pct >= 80 ? "linear-gradient(180deg, var(--green), #16a34a)" :
                       d.pct >= 50 ? "linear-gradient(180deg, var(--accent), #ea580c)" :
                         "linear-gradient(180deg, var(--red), #dc2626)",
-                    boxShadow: d.pct >= 80 ? "0 0 12px rgba(34,197,94,0.3)" : "none",
                   }} 
                 />
               </div>
@@ -111,7 +128,7 @@ export default function Analytics({ habits, comebackScore }) {
         </div>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px", marginBottom: "20px" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: "20px", marginBottom: "20px" }}>
         {/* Category Performance */}
         <div className="card">
           <h2 style={{ fontSize: "15px", fontWeight: 700, marginBottom: "16px" }}>
@@ -119,7 +136,7 @@ export default function Analytics({ habits, comebackScore }) {
           </h2>
           {catPerf.length === 0 ? (
             <p style={{ color: "var(--text3)", fontSize: "13px" }}>
-              No data yet.
+              No category data yet.
             </p>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
@@ -174,7 +191,6 @@ export default function Analytics({ habits, comebackScore }) {
                   strokeWidth={10}
                   strokeDasharray={`${(comebackScore / 100) * 2 * Math.PI * 56} ${2 * Math.PI * 56}`}
                   strokeLinecap="round" 
-                  style={{ filter: "drop-shadow(0 0 8px var(--accent))" }} 
                 />
               </svg>
               <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
@@ -206,7 +222,7 @@ export default function Analytics({ habits, comebackScore }) {
                 key={d} 
                 className="heatmap-cell" 
                 title={`${formatDate(d)}: ${count} habits done`}
-                style={{ background: getHeatColor(count, monthMax), width: "20px", height: "20px" }} 
+                style={{ background: getHeatColor(count, monthMax), width: "22px", height: "22px" }} 
               />
             );
           })}
@@ -229,7 +245,9 @@ export default function Analytics({ habits, comebackScore }) {
           {insights.map((ins, i) => (
             <div 
               key={i} 
+              className="slide-up"
               style={{
+                animationDelay: `${i * 0.1}s`,
                 padding: "12px 16px", 
                 borderRadius: "10px",
                 background: ins.type === "good" ? "var(--green-dim)" : ins.type === "warn" ? "rgba(234,179,8,0.1)" : "var(--surface2)",

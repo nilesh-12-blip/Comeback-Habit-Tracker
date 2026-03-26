@@ -1,10 +1,28 @@
-import { BADGES } from "../../utils/helpers";
+import React, { useState, useEffect } from "react";
+import { BADGES, calcComebackScore } from "../../utils/helpers";
+import { getHabits } from "../../utils/storage";
 
-export default function BadgesPage({ habits, comebackScore }) {
-  const state = { habits, comebackScore };
+export default function BadgesPage({ user }) {
+  const [habits, setHabits] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  function loadHabits() {
+    const data = getHabits();
+    setHabits(data);
+    setLoading(false);
+  }
+
+  useEffect(() => {
+    loadHabits();
+  }, []);
+
+  const comebackScore = calcComebackScore(habits);
   const bestStreak = habits.reduce((m, h) => Math.max(m, h.bestStreak || 0, h.streak || 0), 0);
+  const state = { habits, comebackScore, bestStreak };
   const earned = BADGES.filter(b => b.condition(state));
   const locked = BADGES.filter(b => !b.condition(state));
+
+  if (loading) return <div style={{ padding: "40px", textAlign: "center", color: "var(--text2)" }}>Unlocking levels...</div>;
 
   return (
     <div style={{ maxWidth: "900px" }} className="fade-in">
@@ -13,7 +31,7 @@ export default function BadgesPage({ habits, comebackScore }) {
           BADGE LEVELS
         </h1>
         <p style={{ color: "var(--text2)", fontSize: "13px", marginTop: "4px" }}>
-          {earned.length} of {BADGES.length} levels unlocked · Best streak: {bestStreak} days
+          {earned.length} of {BADGES.length} legendary levels unlocked · Best streak: {bestStreak} days
         </p>
       </div>
 
@@ -27,7 +45,7 @@ export default function BadgesPage({ habits, comebackScore }) {
             textTransform: "uppercase", 
             marginBottom: "14px" 
           }}>
-            Earned
+            Earned Badges
           </h2>
           <div style={{ 
             display: "grid", 
@@ -49,13 +67,13 @@ export default function BadgesPage({ habits, comebackScore }) {
                   {b.emoji}
                 </div>
                 <div style={{ fontSize: "11px", color: "var(--accent2)", fontWeight: 700, marginBottom: "4px" }}>
-                  LEVEL {b.level}
+                  LEVEL {b.level || "—"}
                 </div>
                 <div style={{ fontWeight: 700, fontSize: "15px", marginBottom: "4px" }}>
                   {b.label}
                 </div>
                 <div style={{ fontSize: "12px", color: "var(--text2)" }}>
-                  {b.desc} ({b.days} days)
+                  {b.desc}
                 </div>
               </div>
             ))}
@@ -73,7 +91,7 @@ export default function BadgesPage({ habits, comebackScore }) {
             textTransform: "uppercase", 
             marginBottom: "14px" 
           }}>
-            Locked
+            Locked Levels
           </h2>
           <div style={{ 
             display: "grid", 
@@ -90,16 +108,16 @@ export default function BadgesPage({ habits, comebackScore }) {
                   🔒
                 </div>
                 <div style={{ fontSize: "11px", color: "var(--text3)", fontWeight: 700, marginBottom: "4px" }}>
-                  LEVEL {b.level}
+                  LEVEL {b.level || "—"}
                 </div>
                 <div style={{ fontWeight: 700, fontSize: "15px", marginBottom: "4px" }}>
                   {b.label}
                 </div>
                 <div style={{ fontSize: "12px", color: "var(--text2)" }}>
-                  {b.desc} ({b.days} days)
+                  {b.days}-day consistency streak required
                 </div>
                 <div style={{ marginTop: "8px", fontSize: "11px", color: "var(--text3)" }}>
-                  {Math.max(0, b.days - bestStreak)} days to unlock
+                  {Math.max(0, (b.days || 0) - bestStreak)} days remaining
                 </div>
               </div>
             ))}

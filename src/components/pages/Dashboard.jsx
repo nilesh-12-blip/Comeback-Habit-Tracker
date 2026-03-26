@@ -1,12 +1,39 @@
-import { CATEGORIES, QUOTES, today, formatDate, DAYS, getLast7Days } from "../../utils/helpers";
+import React, { useEffect, useState } from "react";
+import AuthenticatedLayout from "../AuthenticatedLayout";
+import { CATEGORIES, QUOTES, today, calcComebackScore } from "../../utils/helpers";
+import { getHabits, toggleHabit } from "../../utils/storage";
 
-export default function Dashboard({ habits, user, comebackScore, onToggle }) {
+export default function Dashboard({ user, navigate }) {
+  const [habits, setHabits] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  const userName = user?.name || "Demo User";
+  const userEmail = user?.email || "demo@example.com";
+
+  function loadData() {
+    const data = getHabits();
+    setHabits(data);
+    setLoading(false);
+  }
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  function handleToggle(id) {
+    toggleHabit(id);
+    loadData();
+  }
+
   const todayStr = today();
   const quote = QUOTES[new Date().getDay() % QUOTES.length];
   const completed = habits.filter(h => h.logs?.[todayStr]).length;
   const completionRate = habits.length > 0 ? Math.round((completed / habits.length) * 100) : 0;
   const bestStreak = habits.reduce((m, h) => Math.max(m, h.bestStreak || 0), 0);
   const currentStreak = habits.reduce((m, h) => Math.max(m, h.streak || 0), 0);
+  const comebackScore = calcComebackScore(habits);
+
+  if (loading) return <div className="fade-in" style={{ padding: "40px", textAlign: "center", color: "var(--text2)" }}>Loading your legend...</div>;
 
   return (
     <div style={{ maxWidth: "1100px" }} className="fade-in">
@@ -16,7 +43,7 @@ export default function Dashboard({ habits, user, comebackScore, onToggle }) {
           {new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}
         </p>
         <h1 style={{ fontFamily: "var(--font-display)", fontSize: "36px", letterSpacing: "1px" }}>
-          Hey, {user.name.split(" ")[0]}. 👋
+          Hey, {userName?.split(" ")[0] || "Champion"}. 👋
         </h1>
         <p style={{ color: "var(--text2)", fontSize: "14px", marginTop: "6px", fontStyle: "italic" }}>
           "{quote}"
@@ -37,10 +64,10 @@ export default function Dashboard({ habits, user, comebackScore, onToggle }) {
           { label: "Comeback Score", value: comebackScore, sub: "out of 100", color: "var(--blue)", icon: "⚡" },
         ].map((s, idx) => (
           <div key={s.label} className="card slide-up" style={{ 
-            borderColor: "var(--border)",
             animationDelay: `${idx * 0.1}s`,
             position: "relative", 
             overflow: "hidden",
+            borderColor: "var(--border)",
             background: s.color === "var(--accent)" 
               ? "linear-gradient(135deg, rgba(249,115,22,0.1), rgba(249,115,22,0.05))"
               : s.color === "var(--green)"
@@ -78,7 +105,6 @@ export default function Dashboard({ habits, user, comebackScore, onToggle }) {
               WebkitTextFillColor: "transparent",
               letterSpacing: "1px", 
               lineHeight: 1,
-              animation: "glow-pulse 2s ease-in-out infinite"
             }}>
               {s.value}
             </div>
@@ -90,112 +116,93 @@ export default function Dashboard({ habits, user, comebackScore, onToggle }) {
       </div>
 
       {/* Today's Habits */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px" }}>
-        <div className="card" style={{ gridColumn: "1 / -1" }}>
-          <div style={{ 
-            display: "flex", 
-            alignItems: "center", 
-            justifyContent: "space-between", 
-            marginBottom: "16px" 
-          }}>
-            <h2 style={{ fontSize: "16px", fontWeight: 700 }}>
-              Today's Habits
-            </h2>
-            <span style={{ fontSize: "12px", color: "var(--text2)" }}>
-              {completionRate}% complete
-            </span>
-          </div>
-          <div style={{ marginBottom: "12px" }}>
-            <div className="progress-bar">
-              <div className="progress-fill" style={{ width: `${completionRate}%` }} />
-            </div>
-          </div>
-          {habits.length === 0 ? (
-            <div style={{ textAlign: "center", padding: "40px", color: "var(--text3)" }}>
-              <div style={{ fontSize: "40px", marginBottom: "12px" }}>🌱</div>
-              <p>No habits yet. Add your first one in Habits!</p>
-            </div>
-          ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-              {habits.map((h, idx) => {
-                const done = h.logs?.[todayStr];
-                const cat = CATEGORIES.find(c => c.id === h.category) || CATEGORIES[5];
-                return (
-                  <div 
-                    key={h.id}
-                    className="slide-up"
-                    style={{
-                      animationDelay: `${idx * 0.05}s`,
-                      display: "flex", 
-                      alignItems: "center", 
-                      gap: "14px",
-                      padding: "12px 16px", 
-                      borderRadius: "10px",
-                      background: done 
-                        ? "linear-gradient(135deg, rgba(34,197,94,0.15), rgba(34,197,94,0.05))" 
-                        : "var(--surface2)",
-                      border: `1.5px solid ${done ? "rgba(34,197,94,0.3)" : "var(--border)"}`,
-                      cursor: "pointer", 
-                      transition: "all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)",
-                      position: "relative",
-                      overflow: "hidden"
-                    }}
-                    onClick={() => onToggle(h.id)}
-                    onMouseEnter={(e) => {
-                      if (!done) {
-                        e.currentTarget.style.background = "linear-gradient(135deg, rgba(249,115,22,0.1), rgba(249,115,22,0.05))";
-                        e.currentTarget.style.borderColor = "rgba(249,115,22,0.3)";
-                        e.currentTarget.style.transform = "translateY(-2px)";
-                        e.currentTarget.style.boxShadow = "0 8px 20px rgba(249,115,22,0.15)";
-                      }
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.background = done 
-                        ? "linear-gradient(135deg, rgba(34,197,94,0.15), rgba(34,197,94,0.05))" 
-                        : "var(--surface2)";
-                      e.currentTarget.style.borderColor = done ? "rgba(34,197,94,0.3)" : "var(--border)";
-                      e.currentTarget.style.transform = "translateY(0)";
-                      e.currentTarget.style.boxShadow = "none";
-                    }}
-                  >
-                    <div style={{ 
-                      width: "28px", 
-                      height: "28px", 
-                      borderRadius: "8px", 
-                      background: done 
-                        ? "linear-gradient(135deg, var(--green), #16a34a)"
-                        : "var(--surface3)",
-                      display: "flex", 
-                      alignItems: "center", 
-                      justifyContent: "center", 
-                      fontSize: "14px", 
-                      transition: "all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)", 
-                      flexShrink: 0,
-                      animation: done ? "success-pop 0.5s ease forwards" : "none",
-                      boxShadow: done ? "0 0 12px rgba(34,197,94,0.4)" : "none"
-                    }}>
-                      {done ? "✓" : cat.emoji}
-                    </div>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ 
-                        fontSize: "14px", 
-                        fontWeight: 600, 
-                        textDecoration: done ? "line-through" : "none", 
-                        color: done ? "var(--text2)" : "var(--text)" 
-                      }}>
-                        {h.name}
-                      </div>
-                      <div style={{ fontSize: "11px", color: "var(--text3)" }}>
-                        {cat.label} · <span style={{ color: "var(--accent)", fontWeight: 600 }}>{h.streak || 0}🔥</span> streak
-                      </div>
-                    </div>
-                    {done && <span className="bounce" style={{ color: "var(--green)", fontSize: "18px", animation: "bounce 0.6s ease" }}>✓</span>}
-                  </div>
-                );
-              })}
-            </div>
-          )}
+      <div className="card" style={{ marginBottom: "20px" }}>
+        <div style={{ 
+          display: "flex", 
+          alignItems: "center", 
+          justifyContent: "space-between", 
+          marginBottom: "16px" 
+        }}>
+          <h2 style={{ fontSize: "16px", fontWeight: 700 }}>
+            Today's Habits
+          </h2>
+          <span style={{ fontSize: "12px", color: "var(--text2)" }}>
+            {completionRate}% complete
+          </span>
         </div>
+        <div style={{ marginBottom: "20px" }}>
+          <div className="progress-bar">
+            <div className="progress-fill" style={{ width: `${completionRate}%` }} />
+          </div>
+        </div>
+        
+        {habits.length === 0 ? (
+          <div style={{ textAlign: "center", padding: "40px", color: "var(--text3)" }}>
+            <div style={{ fontSize: "40px", marginBottom: "12px" }}>🌱</div>
+            <p>No habits yet. <a href="#" onClick={(e) => { e.preventDefault(); navigate('habits'); }} style={{ color: 'var(--accent)', textDecoration: 'none' }}>Add your first one!</a></p>
+          </div>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+            {habits.map((h, idx) => {
+              const done = h.logs?.[todayStr];
+              const cat = CATEGORIES.find(c => c.id === h.category) || CATEGORIES[5];
+              return (
+                <div 
+                  key={h.id}
+                  className="slide-up"
+                  style={{
+                    animationDelay: `${idx * 0.05}s`,
+                    display: "flex", 
+                    alignItems: "center", 
+                    gap: "14px",
+                    padding: "12px 16px", 
+                    borderRadius: "10px",
+                    background: done 
+                      ? "linear-gradient(135deg, rgba(34,197,94,0.15), rgba(34,197,94,0.05))" 
+                      : "var(--surface2)",
+                    border: `1.5px solid ${done ? "rgba(34,197,94,0.3)" : "var(--border)"}`,
+                    cursor: "pointer", 
+                    transition: "all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)",
+                    position: "relative",
+                    overflow: "hidden"
+                  }}
+                  onClick={() => handleToggle(h.id)}
+                >
+                  <div style={{ 
+                    width: "28px", 
+                    height: "28px", 
+                    borderRadius: "8px", 
+                    background: done 
+                      ? "linear-gradient(135deg, var(--green), #16a34a)"
+                      : "var(--surface3)",
+                    display: "flex", 
+                    alignItems: "center", 
+                    justifyContent: "center", 
+                    fontSize: "14px", 
+                    flexShrink: 0,
+                    boxShadow: done ? "0 0 12px rgba(34,197,94,0.4)" : "none"
+                  }}>
+                    {done ? "✓" : cat.emoji}
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ 
+                      fontSize: "14px", 
+                      fontWeight: 600, 
+                      textDecoration: done ? "line-through" : "none", 
+                      color: done ? "var(--text2)" : "var(--text)" 
+                    }}>
+                      {h.name}
+                    </div>
+                    <div style={{ fontSize: "11px", color: "var(--text3)" }}>
+                      {cat.label} · <span style={{ color: "var(--accent)", fontWeight: 600 }}>{h.streak || 0}🔥</span> streak
+                    </div>
+                  </div>
+                  {done && <span style={{ color: "var(--green)", fontSize: "18px" }}>✓</span>}
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
     </div>
   );

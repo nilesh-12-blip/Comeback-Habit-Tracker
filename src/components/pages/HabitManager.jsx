@@ -1,73 +1,69 @@
-import { useState } from "react";
-import { CATEGORIES, today, getLast7Days, DAYS, formatDate } from "../../utils/helpers";
+import React, { useState, useEffect } from "react";
+import { CATEGORIES, today, formatDate, DAYS } from "../../utils/helpers";
+import { getHabits, saveHabit, deleteHabit, toggleHabit } from "../../utils/storage";
 
-export default function HabitManager({ habits, setHabits }) {
+export default function HabitManager({ user, navigate }) {
+  const [habits, setHabits] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState(null);
-  const [form, setForm] = useState({ name: "", category: "fitness", goal: "daily", note: "" });
+  const [form, setForm] = useState({ name: "", category: "fitness", note: "" });
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(false);
+
   const todayStr = today();
 
+  function loadHabits() {
+    const data = getHabits();
+    setHabits(data);
+    setLoading(false);
+  }
+
+  useEffect(() => {
+    loadHabits();
+  }, []);
+
   const openAdd = () => { 
-    setForm({ name: "", category: "fitness", goal: "daily", note: "" }); 
+    setForm({ name: "", category: "fitness", note: "" }); 
     setEditing(null); 
     setShowModal(true); 
   };
 
   const openEdit = (h) => { 
-    setForm({ name: h.name, category: h.category, goal: h.goal || "daily", note: h.note || "" }); 
+    setForm({ name: h.name, category: h.category, note: h.note || "" }); 
     setEditing(h.id); 
     setShowModal(true); 
   };
 
   const save = () => {
-    if (!form.name.trim()) return;
-    if (editing) {
-      setHabits(prev => prev.map(h => h.id === editing ? { ...h, ...form } : h));
-    } else {
-      const newH = { 
-        id: Date.now().toString(), 
-        ...form, 
-        streak: 0, 
-        bestStreak: 0, 
-        logs: {}, 
-        createdAt: todayStr 
-      };
-      setHabits(prev => [...prev, newH]);
-    }
-    setShowModal(false);
+    if (!form.name.trim() || busy) return;
+    setBusy(true);
+    
+    // Simulate slight delay for "premium" feel
+    setTimeout(() => {
+      const habitToSave = editing 
+        ? { ...habits.find(h => h.id === editing), ...form }
+        : { ...form };
+      
+      saveHabit(habitToSave);
+      loadHabits();
+      setShowModal(false);
+      setBusy(false);
+    }, 400);
   };
 
-  const deleteH = (id) => {
+  const handleDelete = (id) => {
     if (window.confirm("Delete this habit? This action cannot be undone.")) {
-      setHabits(prev => prev.filter(h => h.id !== id));
+      deleteHabit(id);
+      loadHabits();
     }
   };
 
-  const toggle = (id) => {
-    setHabits(prev => prev.map(h => {
-      if (h.id !== id) return h;
-      const logs = { ...h.logs };
-      const was = logs[todayStr];
-      logs[todayStr] = !was;
-      // recalculate streak
-      let streak = 0;
-      const d = new Date();
-      while (true) {
-        const ds = d.toISOString().split("T")[0];
-        if (logs[ds]) { 
-          streak++; 
-          d.setDate(d.getDate() - 1); 
-        } else break;
-      }
-      return { 
-        ...h, 
-        logs, 
-        streak, 
-        bestStreak: Math.max(h.bestStreak || 0, streak), 
-        completedToday: logs[todayStr] 
-      };
-    }));
+  const handleToggle = (id) => {
+    toggleHabit(id);
+    loadHabits();
   };
+
+  if (loading) return <div style={{ padding: "40px", textAlign: "center", color: "var(--text2)" }}>Loading habits...</div>;
 
   return (
     <div style={{ maxWidth: "900px" }} className="fade-in">
@@ -86,7 +82,7 @@ export default function HabitManager({ habits, setHabits }) {
             MY HABITS
           </h1>
           <p style={{ color: "var(--text2)", fontSize: "13px", marginTop: "4px" }}>
-            {habits.length} habits tracked
+            {habits.length} habits tracked securely in localStorage.
           </p>
         </div>
         <button className="btn btn-primary" onClick={openAdd}>
@@ -109,12 +105,19 @@ export default function HabitManager({ habits, setHabits }) {
         </div>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-          {habits.map(h => {
+          {habits.map((h, idx) => {
             const done = h.logs?.[todayStr];
             const cat = CATEGORIES.find(c => c.id === h.category) || CATEGORIES[5];
-            const last7 = getLast7Days();
+            const last7 = Array.from({ length: 7 }, (_, i) => {
+              const d = new Date();
+              d.setDate(d.getDate() - (6 - i));
+              return d.toISOString().split("T")[0];
+            });
             return (
-              <div key={h.id} className="card" style={{ borderColor: done ? "rgba(34,197,94,0.2)" : "var(--border)" }}>
+              <div key={h.id} className="card" style={{ 
+                borderColor: done ? "rgba(34,197,94,0.2)" : "var(--border)",
+                animationDelay: `${idx * 0.05}s`
+              }}>
                 <div style={{ display: "flex", alignItems: "flex-start", gap: "16px" }}>
                   <div style={{ 
                     width: "44px", 
@@ -155,7 +158,7 @@ export default function HabitManager({ habits, setHabits }) {
                       )}
                     </div>
                     {h.note && (
-                      <p style={{ color: "var(--text3)", fontSize: "12px", marginTop: "2px" }}>
+                      <p style={{ color: "var(--text2)", fontSize: "12px", marginTop: "2px" }}>
                         {h.note}
                       </p>
                     )}
@@ -175,7 +178,7 @@ export default function HabitManager({ habits, setHabits }) {
                             height: "22px", 
                             borderRadius: "5px",
                             background: h.logs?.[d] ? "var(--green)" : "var(--surface2)",
-                            border: d === todayStr ? "1px solid var(--accent)" : "1px solid transparent",
+                            border: d === todayStr ? "1px solid var(--accent)" : "1.5px solid transparent",
                             display: "flex", 
                             alignItems: "center", 
                             justifyContent: "center",
@@ -207,7 +210,7 @@ export default function HabitManager({ habits, setHabits }) {
                     flexShrink: 0 
                   }}>
                     <button 
-                      onClick={() => toggle(h.id)} 
+                      onClick={() => handleToggle(h.id)} 
                       className={`btn ${done ? "btn-success" : "btn-ghost"}`} 
                       style={{ fontSize: "12px", padding: "6px 14px" }}
                     >
@@ -224,7 +227,7 @@ export default function HabitManager({ habits, setHabits }) {
                       <button 
                         className="btn btn-danger" 
                         style={{ padding: "5px 10px", fontSize: "12px" }} 
-                        onClick={() => deleteH(h.id)}
+                        onClick={() => handleDelete(h.id)}
                       >
                         Delete
                       </button>
@@ -241,7 +244,7 @@ export default function HabitManager({ habits, setHabits }) {
         <div className="modal-backdrop" onClick={() => setShowModal(false)}>
           <div className="modal" onClick={e => e.stopPropagation()}>
             <h2 style={{ fontSize: "20px", fontWeight: 700, marginBottom: "20px" }}>
-              {editing ? "Edit Habit" : "New Habit"}
+              {editing ? "Edit Habit" : "New Legend Habit"}
             </h2>
             <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
               <div>
@@ -280,8 +283,9 @@ export default function HabitManager({ habits, setHabits }) {
                 className="btn btn-primary" 
                 style={{ flex: 1, justifyContent: "center" }} 
                 onClick={save}
+                disabled={busy}
               >
-                {editing ? "Save Changes" : "Add Habit"}
+                {busy ? "Saving..." : editing ? "Save Changes" : "Create Habit"}
               </button>
               <button 
                 className="btn btn-ghost" 

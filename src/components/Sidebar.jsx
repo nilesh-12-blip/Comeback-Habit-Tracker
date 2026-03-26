@@ -1,12 +1,13 @@
-export default function Sidebar({ page, setPage, user, onLogout, collapsed }) {
+import React from "react";
+
+export default function Sidebar({ user, collapsed, currentPage, navigate, onLogout }) {
   const nav = [
     { id: "dashboard", label: "Dashboard", icon: "⚡" },
     { id: "habits", label: "Habits", icon: "✅" },
-    { id: "monthly", label: "Monthly Track", icon: "📊" },
+    { id: "monthly", label: "Monthly Tracker", icon: "📅" },
     { id: "analytics", label: "Analytics", icon: "📈" },
-    { id: "timeline", label: "Timeline", icon: "📅" },
+    { id: "timeline", label: "Timeline", icon: "🗓️" },
     { id: "badges", label: "Badges", icon: "🏆" },
-    { id: "motivation", label: "Motivation", icon: "💫" },
     { id: "settings", label: "Settings", icon: "⚙️" },
   ];
 
@@ -77,63 +78,52 @@ export default function Sidebar({ page, setPage, user, onLogout, collapsed }) {
         padding: "12px 8px", 
         overflowY: "auto" 
       }}>
-        {nav.map((n, idx) => (
-          <button 
-            key={n.id} 
-            onClick={() => setPage(n.id)} 
-            style={{
-              width: "100%",
-              display: "flex",
-              alignItems: "center",
-              gap: "12px",
-              padding: collapsed ? "12px 14px" : "10px 14px",
-              borderRadius: "10px",
-              border: "1.5px solid transparent",
-              cursor: "pointer",
-              background: page === n.id 
-                ? "linear-gradient(135deg, rgba(249,115,22,0.2), rgba(249,115,22,0.08))" 
-                : "transparent",
-              color: page === n.id ? "var(--accent)" : "var(--text2)",
-              fontFamily: "var(--font-body)",
-              fontSize: "14px",
-              fontWeight: page === n.id ? 700 : 500,
-              marginBottom: "4px",
-              transition: "all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)",
-              borderLeft: page === n.id ? "3px solid var(--accent)" : "3px solid transparent",
-              justifyContent: collapsed ? "center" : "flex-start",
-              position: "relative",
-              overflow: "hidden"
-            }}
-            onMouseEnter={(e) => {
-              if (page !== n.id) {
-                e.currentTarget.style.background = "rgba(249,115,22,0.1)";
-                e.currentTarget.style.color = "var(--accent)";
-                e.currentTarget.style.transform = "translateX(4px)";
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (page !== n.id) {
-                e.currentTarget.style.background = "transparent";
-                e.currentTarget.style.color = "var(--text2)";
-                e.currentTarget.style.transform = "translateX(0)";
-              }
-            }}
-            title={collapsed ? n.label : undefined}
-          >
-            <span style={{ 
-              fontSize: "18px", 
-              flexShrink: 0,
-              animation: page === n.id ? "float 2s ease-in-out infinite" : "none"
-            }}>
-              {n.icon}
-            </span>
-            {!collapsed && <span>{n.label}</span>}
-          </button>
-        ))}
+        {nav.map((n) => {
+          const active = currentPage === n.id;
+          return (
+            <div 
+              key={n.id} 
+              onClick={() => navigate(n.id)}
+              style={{
+                width: "100%",
+                display: "flex",
+                alignItems: "center",
+                gap: "12px",
+                padding: collapsed ? "12px 14px" : "10px 14px",
+                borderRadius: "10px",
+                border: "1.5px solid transparent",
+                cursor: "pointer",
+                background: active 
+                  ? "linear-gradient(135deg, rgba(249,115,22,0.2), rgba(249,115,22,0.08))" 
+                  : "transparent",
+                color: active ? "var(--accent)" : "var(--text2)",
+                fontFamily: "var(--font-body)",
+                fontSize: "14px",
+                fontWeight: active ? 700 : 500,
+                marginBottom: "4px",
+                transition: "all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)",
+                borderLeft: active ? "3px solid var(--accent)" : "3px solid transparent",
+                justifyContent: collapsed ? "center" : "flex-start",
+                position: "relative",
+                overflow: "hidden",
+                textDecoration: "none"
+              }}
+            >
+              <span style={{ 
+                fontSize: "18px", 
+                flexShrink: 0,
+                animation: active ? "float 2s ease-in-out infinite" : "none"
+              }}>
+                {n.icon}
+              </span>
+              {!collapsed && <span>{n.label}</span>}
+            </div>
+          );
+        })}
       </nav>
 
       {/* User */}
-      {!collapsed && (
+      {!collapsed && user && (
         <div style={{ 
           padding: "16px", 
           borderTop: "1px solid var(--border)",
@@ -159,7 +149,7 @@ export default function Sidebar({ page, setPage, user, onLogout, collapsed }) {
               flexShrink: 0,
               boxShadow: "0 0 16px rgba(249,115,22,0.4)"
             }}>
-              {user.name[0].toUpperCase()}
+              {user.name?.[0]?.toUpperCase() || "U"}
             </div>
             <div style={{ minWidth: 0 }}>
               <div style={{ 
