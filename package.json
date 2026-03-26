@@ -1,0 +1,34 @@
+{
+  "name": "comeback-habit-tracker",
+  "version": "1.0.0",
+  "description": "A modern, premium habit tracking application for personal growth",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "db:generate": "prisma generate",
+    "db:push": "prisma db push",
+    "deploy": "npm run build && echo 'Ready for Vercel deployment'"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.16.0",
+    "bcryptjs": "^3.0.3",
+    "next": "^16.2.1",
+    "next-auth": "^4.24.13",
+    "prisma": "^6.16.0",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "zod": "^4.3.6"
+  },
+  "keywords": [
+    "habits",
+    "tracking",
+    "personal-growth",
+    "discipline",
+    "productivity",
+    "wellness"
+  ],
+  "author": "",
+  "license": "MIT"
+}
