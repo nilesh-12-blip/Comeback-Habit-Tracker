@@ -1,0 +1,18 @@
+{
+  "/_global-error/page": "/_global-error",
+  "/_not-found/page": "/_not-found",
+  "/api/auth/[...nextauth]/route": "/api/auth/[...nextauth]",
+  "/api/auth/register/route": "/api/auth/register",
+  "/api/habits/[id]/toggle/route": "/api/habits/[id]/toggle",
+  "/api/habits/route": "/api/habits",
+  "/api/health/route": "/api/health",
+  "/api/monthly/route": "/api/monthly",
+  "/api/summary/route": "/api/summary",
+  "/dashboard/page": "/dashboard",
+  "/docs/page": "/docs",
+  "/login/page": "/login",
+  "/monthly-track/page": "/monthly-track",
+  "/page": "/",
+  "/robots.txt/route": "/robots.txt",
+  "/sitemap.xml/route": "/sitemap.xml"
+}
